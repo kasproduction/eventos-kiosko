@@ -298,6 +298,7 @@ html, body, #root {
   text-transform: uppercase; color: var(--ink-35);
 }
 .k-foot-meta { color: var(--ink-20); }
+.k-foot-counter { color: var(--emerald); font-weight: 500; }
 
 /* ============================================
    PORTRAIT — 1080x1920
@@ -411,6 +412,7 @@ html, body, #root {
   display: flex; align-items: center; justify-content: space-between;
   padding: 20px 0 36px;
 }
+.k-p-bottom.compact { padding-top: 16px; }
 
 /* ============================================
    OVERLAY
@@ -478,6 +480,14 @@ html, body, #root {
   font-family: var(--font-b); font-size: 12px; font-weight: 600;
   letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-50);
 }
+
+.k-ov-avatar {
+  width: 96px; height: 96px; border-radius: 50%; overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.12);
+  flex-shrink: 0;
+}
+.k-ov-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.k-canvas.portrait .k-ov-avatar { width: 80px; height: 80px; }
 
 .k-ov-greeting {
   font-family: var(--font-h); font-weight: 300;

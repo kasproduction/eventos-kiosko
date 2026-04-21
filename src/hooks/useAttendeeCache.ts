@@ -1,9 +1,10 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { getKioskConfig } from '../lib/config';
 
 interface CachedAttendee {
   id: number;
   name: string;
+  avatar_url?: string | null;
 }
 
 /**
@@ -19,6 +20,7 @@ export function useAttendeeCache(totemToken: string) {
   const byIdRef = useRef<Map<number, string>>(new Map());
   const byTokenRef = useRef<Map<string, CachedAttendee>>(new Map());
   const lastFetchRef = useRef<string | null>(null);
+  const [cachedCount, setCachedCount] = useState(0);
 
   const fetchManifest = useCallback(async () => {
     if (!totemToken) return;
@@ -40,11 +42,12 @@ export function useAttendeeCache(totemToken: string) {
       for (const a of json.attendees) {
         byIdRef.current.set(a.id, a.name);
         if (a.token) {
-          byTokenRef.current.set(a.token, { id: a.id, name: a.name });
+          byTokenRef.current.set(a.token, { id: a.id, name: a.name, avatar_url: a.avatar_url });
         }
       }
 
       lastFetchRef.current = json.generated_at;
+      setCachedCount(byIdRef.current.size);
     } catch {
       // Silent — cache is best-effort
     }
@@ -72,5 +75,20 @@ export function useAttendeeCache(totemToken: string) {
     return byTokenRef.current.get(qrValue)?.name ?? null;
   }
 
-  return { lookupName };
+  function lookupAvatar(qrValue: string): string | null {
+    if (qrValue.startsWith('d.')) {
+      const parts = qrValue.split('.');
+      if (parts.length >= 3) {
+        const id = parseInt(parts[1], 10);
+        if (!isNaN(id)) {
+          for (const entry of byTokenRef.current.values()) {
+            if (entry.id === id) return entry.avatar_url ?? null;
+          }
+        }
+      }
+    }
+    return byTokenRef.current.get(qrValue)?.avatar_url ?? null;
+  }
+
+  return { lookupName, lookupAvatar, cachedCount };
 }

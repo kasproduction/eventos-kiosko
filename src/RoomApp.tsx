@@ -16,10 +16,11 @@ interface OverlayData {
 
 export default function RoomApp() {
   const { totemToken, roomName } = getKioskConfig();
-  const { online, queueCount, schedule, roomName: serverRoomName, scan } = useRoomTotem(totemToken);
+  const { online, queueCount, schedule, roomName: serverRoomName, checkinsToday, scan } = useRoomTotem(totemToken);
   const cache = useAttendeeCache(totemToken);
 
   const [overlay, setOverlay] = useState<OverlayData>({ type: null, success: null, errorCode: null });
+  const [overlayAvatar, setOverlayAvatar] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -93,8 +94,9 @@ export default function RoomApp() {
     if (busyRef.current) return;
     busyRef.current = true;
 
-    // Instant: show name from cache while API processes
+    // Instant: show name + avatar from cache while API processes
     const cachedName = cache.lookupName(qrValue);
+    setOverlayAvatar(cache.lookupAvatar(qrValue));
     if (cachedName) {
       setOverlay({
         type: 'checkin', // Neutral — API will correct to checkout if needed
@@ -121,6 +123,7 @@ export default function RoomApp() {
     // Auto-close overlay
     resultTimeout.current = setTimeout(() => {
       setOverlay({ type: null, success: null, errorCode: null });
+      setOverlayAvatar(null);
       setTimeout(() => { busyRef.current = false; }, 500);
     }, 2500);
   }, [scan, cache]);
@@ -334,7 +337,14 @@ export default function RoomApp() {
                 <span className="k-foot-brand">EventOS</span>
                 <span className="k-foot-meta k-label-sm">Kiosk    {displayName}</span>
               </div>
-              <span className="k-foot-meta k-label-sm">Synced {clock.time}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+                {checkinsToday > 0 && (
+                  <span className="k-foot-counter k-label-sm">{checkinsToday} check-ins today</span>
+                )}
+                <span className="k-foot-meta k-label-sm">
+                  {online ? 'Online' : 'Offline'} · {cache.cachedCount.toLocaleString()} cached · {clock.time}
+                </span>
+              </div>
             </footer>
           </div>
 
@@ -433,7 +443,7 @@ export default function RoomApp() {
               )}
             </section>
 
-            <div className="k-p-bottom">
+            <div className={`k-p-bottom ${!nextSession || !liveSession ? 'compact' : ''}`}>
               {nextSession && liveSession && (
                 <section className="k-p-next">
                   <div className="k-p-next-header">
@@ -466,7 +476,14 @@ export default function RoomApp() {
 
               <footer className="k-p-footer">
                 <span className="k-foot-brand">EventOS</span>
-                <span className="k-foot-meta k-label-sm">Synced {clock.time}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  {checkinsToday > 0 && (
+                    <span className="k-foot-counter k-label-sm">{checkinsToday} check-ins</span>
+                  )}
+                  <span className="k-foot-meta k-label-sm">
+                    {online ? 'Online' : 'Offline'} · {cache.cachedCount.toLocaleString()} cached · {clock.time}
+                  </span>
+                </div>
               </footer>
             </div>
           </div>
@@ -477,6 +494,7 @@ export default function RoomApp() {
             onClick={() => {
               if (resultTimeout.current) clearTimeout(resultTimeout.current);
               setOverlay({ type: null, success: null, errorCode: null });
+              setOverlayAvatar(null);
               setTimeout(() => { busyRef.current = false; }, 1000);
             }}
           >
@@ -494,6 +512,12 @@ export default function RoomApp() {
                   {overlay.type === 'offline' && 'Offline    En cola'}
                 </span>
               </div>
+
+              {overlayAvatar && (overlay.type === 'checkin' || overlay.type === 'checkout') && (
+                <div className="k-ov-avatar">
+                  <img src={overlayAvatar} alt="" />
+                </div>
+              )}
 
               <div className="k-ov-greeting">
                 {overlay.type === 'checkin' && 'Bienvenido,'}

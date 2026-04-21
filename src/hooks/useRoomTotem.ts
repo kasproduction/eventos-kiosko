@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { pingTotem, processRoomScan, processRoomScanBatch, type RoomScanResult, type PingResult } from '../lib/room-api';
 import * as offlineQueue from '../lib/offline-queue';
-import { getKioskConfig } from '../lib/config';
 
 interface SessionInfo {
   id: number;
@@ -23,6 +21,7 @@ export interface RoomTotemState {
   schedule: SessionInfo[];
   queueCount: number;
   roomName: string;
+  checkinsToday: number;
 }
 
 /**
@@ -38,11 +37,11 @@ export function useRoomTotem(totemToken: string) {
     schedule: [],
     queueCount: 0,
     roomName: '',
+    checkinsToday: 0,
   });
 
   const onlineRef = useRef(true);
   const syncingRef = useRef(false);
-  const socketRef = useRef<Socket | null>(null);
 
   // Ping every 10 seconds — returns full schedule
   useEffect(() => {
@@ -59,6 +58,7 @@ export function useRoomTotem(totemToken: string) {
         activeSession: result.session ?? prev.activeSession,
         schedule: (result as any).schedule ?? prev.schedule,
         roomName: (result as any).room_name ?? prev.roomName,
+        checkinsToday: (result as any).checkins_today ?? prev.checkinsToday,
       }));
 
       if (result.ok && wasOffline) {
@@ -71,44 +71,8 @@ export function useRoomTotem(totemToken: string) {
     return () => clearInterval(interval);
   }, [totemToken]);
 
-  // Socket connection for real-time updates
-  useEffect(() => {
-    if (!totemToken) return;
-
-    const { socketUrl } = getKioskConfig();
-    const socket = io(socketUrl, {
-      auth: { token: totemToken },
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionDelay: 2000,
-    });
-
-    socketRef.current = socket;
-
-    // Listen for agenda/session changes — trigger a fresh ping
-    const refreshEvents = ['session:started', 'session:ended', 'session:cancelled', 'agenda:updated', 'data:invalidate'];
-    refreshEvents.forEach(event => {
-      socket.on(event, () => {
-        // Re-ping to get updated schedule
-        pingTotem(totemToken).then(result => {
-          if (result.ok) {
-            setState(prev => ({
-              ...prev,
-              online: true,
-              activeSession: result.session ?? prev.activeSession,
-              schedule: (result as any).schedule ?? prev.schedule,
-              roomName: (result as any).room_name ?? prev.roomName,
-            }));
-          }
-        });
-      });
-    });
-
-    return () => {
-      socket.disconnect();
-      socketRef.current = null;
-    };
-  }, [totemToken]);
+  // Socket disabled for kiosk — totem token is not a Sanctum Bearer token.
+  // Ping every 10s is sufficient for schedule updates.
 
   // Update queue count periodically
   useEffect(() => {
@@ -146,6 +110,10 @@ export function useRoomTotem(totemToken: string) {
 
   const scan = useCallback(async (qrToken: string): Promise<RoomScanResult> => {
     const result = await processRoomScan(qrToken, totemToken);
+
+    if (result.ok && result.data.type === 'checkin') {
+      setState(prev => ({ ...prev, checkinsToday: prev.checkinsToday + 1 }));
+    }
 
     if (!result.ok && result.code === 'SIN_CONEXION') {
       await offlineQueue.enqueue(qrToken);
