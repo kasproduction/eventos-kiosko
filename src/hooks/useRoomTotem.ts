@@ -8,6 +8,10 @@ interface SessionInfo {
   id: number;
   title: string;
   speaker?: string | null;
+  speaker_photo?: string | null;
+  speaker_role?: string | null;
+  track?: string | null;
+  type?: string | null;
   starts_at: string;
   ends_at: string;
   status: 'live' | 'ended' | 'upcoming';

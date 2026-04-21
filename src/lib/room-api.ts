@@ -13,6 +13,17 @@ export type RoomScanResult =
   | { ok: true; data: RoomScanSuccess }
   | { ok: false; code: string };
 
+/**
+ * Fire-and-forget scan — doesn't await response.
+ * Returns a promise that resolves with the result for background error handling.
+ */
+export function processRoomScanAsync(
+  qrToken: string,
+  totemToken: string
+): Promise<RoomScanResult> {
+  return processRoomScan(qrToken, totemToken);
+}
+
 export async function processRoomScan(
   qrToken: string,
   totemToken: string
