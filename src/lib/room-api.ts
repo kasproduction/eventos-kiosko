@@ -75,14 +75,18 @@ export interface PingResult {
 export async function pingTotem(totemToken: string): Promise<PingResult> {
   const { apiUrl } = getKioskConfig();
 
+  console.log('[ping] token:', totemToken ? totemToken.slice(0, 10) + '...' : 'EMPTY', 'url:', apiUrl);
+
   try {
     const res = await fetch(`${apiUrl}/rooms/ping`, {
       headers: { 'X-Totem-Token': totemToken, Accept: 'application/json' },
     });
 
+    console.log('[ping] status:', res.status);
     if (!res.ok) return { ok: false };
     return await res.json();
-  } catch {
+  } catch (e) {
+    console.error('[ping] error:', e);
     return { ok: false };
   }
 }
