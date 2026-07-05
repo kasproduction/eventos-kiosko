@@ -24,10 +24,15 @@ export function useAttendance(eventId: number): AttendanceState {
       reconnectionDelay: 2000,
     });
 
-    socket.emit('join:event', { event_id: eventId });
+    // Join dentro de `connect` — se re-dispara en cada reconexion (los rooms
+    // no sobreviven un reconnect de Socket.IO). El server destructura `eventId`
+    // (eventos-socket/src/index.ts join:event) y emite `checkedIn` camelCase.
+    socket.on('connect', () => {
+      socket?.emit('join:event', { eventId });
+    });
 
-    socket.on('checkin:update', (payload: { checked_in: number; total: number }) => {
-      setState({ checkedIn: payload.checked_in, total: payload.total });
+    socket.on('checkin:update', (payload: { checkedIn: number; total: number }) => {
+      setState({ checkedIn: payload.checkedIn, total: payload.total });
     });
 
     return () => {
