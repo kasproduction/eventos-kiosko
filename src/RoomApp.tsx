@@ -95,8 +95,8 @@ export default function RoomApp() {
     busyRef.current = true;
 
     // Instant: show name + avatar from cache while API processes
-    const cachedName = cache.lookupName(qrValue);
-    setOverlayAvatar(cache.lookupAvatar(qrValue));
+    const [cachedName, cachedAvatar] = await Promise.all([cache.lookupName(qrValue), cache.lookupAvatar(qrValue)]);
+    setOverlayAvatar(cachedAvatar);
     if (cachedName) {
       setOverlay({
         type: 'checkin', // Neutral — API will correct to checkout if needed

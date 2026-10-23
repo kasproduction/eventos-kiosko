@@ -41,8 +41,9 @@ export function useAttendeeCache(totemToken: string) {
 
       for (const a of json.attendees) {
         byIdRef.current.set(a.id, a.name);
-        if (a.token) {
-          byTokenRef.current.set(a.token, { id: a.id, name: a.name, avatar_url: a.avatar_url });
+        // El backend manda el sha256 del QR estatico, nunca el QR (BUG-418)
+        if (a.token_hash) {
+          byTokenRef.current.set(a.token_hash, { id: a.id, name: a.name, avatar_url: a.avatar_url });
         }
       }
 
@@ -59,12 +60,24 @@ export function useAttendeeCache(totemToken: string) {
     return () => clearInterval(id);
   }, [fetchManifest]);
 
+  /** sha256 hex del QR leido: el cache de QR estaticos va por hash. */
+  async function hashOf(qrValue: string): Promise<string> {
+    // Sin contexto seguro (http por IP) no hay crypto.subtle: sin nombre instantaneo, el scan sigue
+    if (!globalThis.crypto?.subtle) return '';
+    try {
+      const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(qrValue));
+      return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
+    } catch {
+      return '';
+    }
+  }
+
   /**
    * Lookup name from QR value. Returns name or null.
    * Dynamic: d.{attendee_id}.{window}.{sig} → lookup by ID
-   * Static: lookup by token string
+   * Static: lookup by sha256 of the token
    */
-  function lookupName(qrValue: string): string | null {
+  async function lookupName(qrValue: string): Promise<string | null> {
     if (qrValue.startsWith('d.')) {
       const parts = qrValue.split('.');
       if (parts.length >= 3) {
@@ -72,10 +85,10 @@ export function useAttendeeCache(totemToken: string) {
         if (!isNaN(id)) return byIdRef.current.get(id) ?? null;
       }
     }
-    return byTokenRef.current.get(qrValue)?.name ?? null;
+    return byTokenRef.current.get(await hashOf(qrValue))?.name ?? null;
   }
 
-  function lookupAvatar(qrValue: string): string | null {
+  async function lookupAvatar(qrValue: string): Promise<string | null> {
     if (qrValue.startsWith('d.')) {
       const parts = qrValue.split('.');
       if (parts.length >= 3) {
@@ -87,7 +100,7 @@ export function useAttendeeCache(totemToken: string) {
         }
       }
     }
-    return byTokenRef.current.get(qrValue)?.avatar_url ?? null;
+    return byTokenRef.current.get(await hashOf(qrValue))?.avatar_url ?? null;
   }
 
   return { lookupName, lookupAvatar, cachedCount };
