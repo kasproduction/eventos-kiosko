@@ -6,6 +6,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   QR_INVALID:            'Código QR no válido',
   ATTENDEE_BANNED:       'Acceso denegado',
   EVENT_NOT_PUBLISHED:   'El evento no está activo',
+  REGISTRATION_PENDING:  'Registro pendiente de aprobación',
   SIN_CONEXION:          'Sin conexión al servidor',
   ERROR_DESCONOCIDO:     'Error inesperado',
 };
